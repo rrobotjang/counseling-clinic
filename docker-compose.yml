@@ -1,0 +1,40 @@
+services:
+  gradio:
+    build:
+      context: .
+      dockerfile: Dockerfile.gradio
+    ports:
+      - "7862:7862"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - gradio-data:/app/data
+    depends_on:
+      - api
+    networks:
+      - clinic-network
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - api-data:/app/data
+      - db-data:/app
+    networks:
+      - clinic-network
+    restart: unless-stopped
+
+volumes:
+  gradio-data:
+  api-data:
+  db-data:
+
+networks:
+  clinic-network:
+    driver: bridge

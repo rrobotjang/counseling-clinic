@@ -1,0 +1,14 @@
+__pycache__
+*.pyc
+*.pyo
+.DS_Store
+*.db
+*.ipynb
+.git
+.github
+*.md
+!README.md
+counseling.db
+.env
+.vscode
+.idea
