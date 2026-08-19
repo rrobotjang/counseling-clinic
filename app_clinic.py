@@ -445,12 +445,14 @@ def train_counselor(num_episodes: int = 10):
         results.append(episode_reward)
     
     avg_reward = sum(results) / len(results) if results else 0
+    max_reward = max(results) if results else 0
+    min_reward = min(results) if results else 0
     
     return f"""=== 학습 완료 ===
 에피소드: {num_episodes}
 평균 보상: {avg_reward:.3f}
-최대 보상: {max(results):.3f if results else 0}
-최소 보상: {min(results):.3f if results else 0}
+최대 보상: {max_reward:.3f}
+최소 보상: {min_reward:.3f}
 
 상담사가 상담 전략을 학습했습니다."""
 
