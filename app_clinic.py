@@ -498,6 +498,11 @@ class LearningRequest(BaseModel):
     client_state: Dict
 
 
+@fastapi_app.get("/")
+async def root():
+    return RedirectResponse(url="/ui")
+
+
 @fastapi_app.get("/api")
 async def api_root():
     return {
@@ -804,11 +809,13 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default="0.0.0.0", help="호스트")
     args = parser.parse_args()
     
+    port = int(os.environ.get("PORT", args.port))
+    
     initialize_clinic(use_api=False)
     chatbot_model.load()
     
-    print(f"✅ 서버 시작: http://localhost:{args.port}")
-    print(f"   Gradio UI: http://localhost:{args.port}/ui")
-    print(f"   API 문서: http://localhost:{args.port}/api/docs")
+    print(f"✅ 서버 시작: http://localhost:{port}")
+    print(f"   Gradio UI: http://localhost:{port}/ui")
+    print(f"   API 문서: http://localhost:{port}/api/docs")
     
-    uvicorn.run(fastapi_app, host=args.host, port=args.port)
+    uvicorn.run(fastapi_app, host=args.host, port=port)
