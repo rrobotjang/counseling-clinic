@@ -1,16 +1,6 @@
 services:
   - type: web
-    name: counseling-clinic-api
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python api_server.py
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.10.0
-    plan: free
-
-  - type: web
-    name: counseling-clinic-gradio
+    name: counseling-clinic
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: python app_clinic.py --port 10000
