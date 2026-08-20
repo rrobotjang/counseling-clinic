@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧠 심리상담 클리닉</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .container { background: white; border-radius: 20px; padding: 40px; max-width: 600px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        h1 { font-size: 2.5em; margin-bottom: 20px; text-align: center; }
+        .features { margin: 30px 0; }
+        .feature { display: flex; align-items: center; margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 10px; }
+        .feature-icon { font-size: 2em; margin-right: 15px; }
+        .feature-text h3 { color: #333; margin-bottom: 5px; }
+        .feature-text p { color: #666; font-size: 0.9em; }
+        .buttons { display: flex; gap: 15px; justify-content: center; margin-top: 30px; }
+        .btn { padding: 15px 30px; border-radius: 10px; text-decoration: none; font-weight: bold; transition: transform 0.2s; }
+        .btn:hover { transform: translateY(-3px); }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-secondary { background: #333; color: white; }
+        .status { text-align: center; margin-top: 20px; padding: 15px; background: #d4edda; border-radius: 10px; color: #155724; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 심리상담 클리닉</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 20px;">강화학습 상담사 + 한국어 언어모델 통합 시스템</p>
+        
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">🤖</div>
+                <div class="feature-text">
+                    <h3>RL 학습 상담 전략</h3>
+                    <p>공감, 질문, 반영, 해석, 지시, 정보제공 6가지 전략 자동 선택</p>
+                </div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">💬</div>
+                <div class="feature-text">
+                    <h3>한국어 언어모델</h3>
+                    <p>11,823개 상담 QA 데이터로 학습된 자연스러운 응답</p>
+                </div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">👥</div>
+                <div class="feature-text">
+                    <h3>내담자 시뮬레이션</h3>
+                    <p>5명의 다양한 프로필을 가진 내담자 에이전트</p>
+                </div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📈</div>
+                <div class="feature-text">
+                    <h3>실시간 감정 추적</h3>
+                    <p>불안, 슬픔, 희망, 신뢰 실시간 모니터링</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="buttons">
+            <a href="https://github.com/rrobotjang/counseling-clinic" class="btn btn-secondary">GitHub</a>
+            <a href="https://huggingface.co/janggi3" class="btn btn-primary">Hugging Face</a>
+        </div>
+        
+        <div class="status">
+            ✅ Docker 이미지 빌드 완료 | GitHub Actions CI/CD 활성화
+        </div>
+    </div>
+</body>
+</html>
