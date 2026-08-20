@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: Build and Push Docker Image
 
 on:
   push:
@@ -37,20 +37,11 @@ jobs:
             type=ref,event=branch
             type=sha,prefix=
 
-      - name: Build and push Gradio image
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile.gradio
+          file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gradio:${{ steps.meta.outputs.version }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Build and push API image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.api
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.meta.outputs.version }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
           labels: ${{ steps.meta.outputs.labels }}

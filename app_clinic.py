@@ -1,7 +1,9 @@
 """
-심리상담 클리닉 - 통합 Gradio 앱
+심리상담 클리닉 - 통합 앱 (Gradio + FastAPI)
 
 강화학습 상담사 + 한국어 언어모델 통합 시스템
+- Gradio UI: /
+- FastAPI: /api/*
 """
 
 import gradio as gr
@@ -11,6 +13,12 @@ import sys
 import random
 from typing import List, Dict, Tuple, Optional
 
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
+import uvicorn
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'korean_chatbot_app_v2'))
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -18,7 +26,7 @@ from village.counselor_agent import CounselorAgent
 from village.client_agent import ClientAgent, create_default_clients
 from village.clinic_environment import CounselingClinicEnvironment, CounselingPhase
 from village.api_client import create_client, OfflineCounselingClient
-from village.database import init_database
+from village.database import CounselingDatabase, init_database
 
 
 # ============================================================
@@ -26,8 +34,6 @@ from village.database import init_database
 # ============================================================
 
 class ChatbotModelLoader:
-    """학습된 한국어 챗봇 모델 로더"""
-    
     def __init__(self):
         self.model = None
         self.sp = None
@@ -36,7 +42,6 @@ class ChatbotModelLoader:
         self.loaded = False
     
     def load(self, checkpoint_dir: str = None):
-        """모델 로드"""
         if checkpoint_dir is None:
             checkpoint_dir = os.path.join(
                 os.path.dirname(__file__), 
@@ -86,7 +91,6 @@ class ChatbotModelLoader:
     
     @torch.no_grad()
     def generate(self, text: str) -> str:
-        """텍스트 응답 생성"""
         if not self.loaded or self.model is None:
             return None
         
@@ -126,48 +130,40 @@ clients = create_default_clients()
 clinic_env = CounselingClinicEnvironment()
 current_client_name: Optional[str] = None
 current_session_active: bool = False
+counseling_client = None
+db: Optional[CounselingDatabase] = None
 
 
 # ============================================================
 # 초기화
 # ============================================================
 
-counseling_client = None
-api_server_mode = False
-
-
 def initialize_clinic(use_api: bool = False):
-    """클리닉 초기화"""
-    global counselor, clients, clinic_env, counseling_client, api_server_mode
+    global counselor, clients, clinic_env, counseling_client, db
     
     counselor = CounselorAgent(name="김상담사", state_dim=15)
     clients = create_default_clients()
     clinic_env = CounselingClinicEnvironment()
-    api_server_mode = use_api
     
-    if use_api:
-        counseling_client = create_client("api")
-        mode_info = "API 서버 모드"
+    db_path = os.path.join(os.path.dirname(__file__), 'counseling.db')
+    csv_path = os.path.join(os.path.dirname(__file__), 'data', 'ChatbotData.csv')
+    
+    if not os.path.exists(db_path):
+        db = init_database(csv_path, db_path)
     else:
-        db_path = os.path.join(os.path.dirname(__file__), 'counseling.db')
-        csv_path = os.path.join(os.path.dirname(__file__), 'data', 'ChatbotData.csv')
-        
-        if not os.path.exists(db_path):
-            init_database(csv_path, db_path)
-        
-        counseling_client = create_client("offline", db_path)
-        mode_info = "오프라인 모드"
+        db = CounselingDatabase(db_path)
+    
+    counseling_client = create_client("offline", db_path)
     
     client_list = "\n".join([f"• {c.name} ({c.age}세, {c.gender}) - {', '.join(c.issues)}" for c in clients.values()])
     
-    return f"심리상담 클리닉이 초기화되었습니다. ({mode_info})\n\n등록된 내담자:\n{client_list}"
+    return f"심리상담 클리닉이 초기화되었습니다. (오프라인 모드)\n\n등록된 내담자:\n{client_list}"
 
 
 def load_chatbot_model():
-    """챗봇 모델 로드"""
     success = chatbot_model.load()
     if success:
-        return "✅ 한국어 모델 로드 완료! 상담사 응답에 언어 모델이 적용됩니다."
+        return "✅ 한국어 모델 로드 완료!"
     else:
         return "⚠️ 모델 로드 실패. 기본 템플릿 응답을 사용합니다."
 
@@ -177,7 +173,6 @@ def load_chatbot_model():
 # ============================================================
 
 def start_session(client_name: str):
-    """세션 시작"""
     global current_client_name, current_session_active
     
     if client_name not in clients:
@@ -189,7 +184,7 @@ def start_session(client_name: str):
     client = clients[client_name]
     client.start_new_session()
     
-    obs = clinic_env.reset(client_name)
+    clinic_env.reset(client_name)
     
     greeting = f"안녕하세요, {client.name}님. 저는 오늘 상담을 도와드릴 김상담사입니다.\n\n오늘은 어떤 이야기를 나누고 싶으신가요?"
     
@@ -216,7 +211,6 @@ def start_session(client_name: str):
 
 
 def end_session():
-    """세션 종료"""
     global current_session_active
     
     if not current_session_active or current_client_name is None:
@@ -248,7 +242,6 @@ def end_session():
 # ============================================================
 
 def counseling_chat(user_message: str, history: list, use_model: bool = True):
-    """상담 대화 처리"""
     global current_client_name, current_session_active
     
     if not current_session_active or current_client_name is None:
@@ -277,7 +270,6 @@ def counseling_chat(user_message: str, history: list, use_model: bool = True):
             )
             if api_result and 'response' in api_result:
                 api_response = api_result['response']
-                similarity = api_result.get('similarity', 0)
         except Exception:
             pass
     
@@ -327,7 +319,6 @@ def counseling_chat(user_message: str, history: list, use_model: bool = True):
 # ============================================================
 
 def get_client_status():
-    """내담자 상태 표시"""
     status_lines = ["=== 내담자 상태 ===\n"]
     
     for name, client in clients.items():
@@ -349,7 +340,6 @@ def get_client_status():
 
 
 def get_counselor_stats():
-    """상담사 통계"""
     stats = counselor.get_statistics()
     
     return f"""=== 상담사 통계 ===
@@ -360,7 +350,6 @@ def get_counselor_stats():
 
 
 def show_action_probabilities():
-    """상담사 행동 확률"""
     if current_client_name is None or not current_session_active:
         return "활성 세션이 없습니다."
     
@@ -399,7 +388,6 @@ def show_action_probabilities():
 # ============================================================
 
 def train_counselor(num_episodes: int = 10):
-    """상담사 학습"""
     global counselor
     
     results = []
@@ -458,16 +446,208 @@ def train_counselor(num_episodes: int = 10):
 
 
 # ============================================================
+# FastAPI 엔드포인트
+# ============================================================
+
+fastapi_app = FastAPI(
+    title="심리상담 클리닉 API",
+    description="강화학습 상담사와 상담 데이터 기반 응답 생성 API",
+    version="1.0.0"
+)
+
+fastapi_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class CounselRequest(BaseModel):
+    user_message: str
+    counseling_style: str = "공감"
+    client_emotions: Optional[Dict[str, float]] = None
+    session_id: Optional[int] = None
+
+
+class CounselResponse(BaseModel):
+    response: str
+    source_id: Optional[int]
+    similarity: float
+    detected_emotions: List[str]
+    counseling_style: str
+    reward: float
+
+
+class SessionStartRequest(BaseModel):
+    client_name: str
+    counselor_name: str = "김상담사"
+
+
+class SessionEndRequest(BaseModel):
+    session_id: int
+    final_emotions: Dict[str, float]
+
+
+class LearningRequest(BaseModel):
+    counselor_name: str
+    episode: int
+    reward: float
+    strategy: str
+    client_state: Dict
+
+
+@fastapi_app.get("/api")
+async def api_root():
+    return {
+        "message": "심리상담 클리닉 API",
+        "version": "1.0.0",
+        "endpoints": [
+            "/api/counsel - 상담 응답 생성",
+            "/api/search - 유사 맥락 검색",
+            "/api/session/start - 세션 시작",
+            "/api/session/end - 세션 종료",
+            "/api/learning - 학습 이력 저장",
+            "/api/stats - 통계 조회"
+        ]
+    }
+
+
+@fastapi_app.post("/api/counsel", response_model=CounselResponse)
+async def api_counsel(request: CounselRequest):
+    if db is None:
+        raise HTTPException(status_code=500, detail="데이터베이스가 초기화되지 않았습니다.")
+    
+    result = db.get_best_response(request.user_message, request.counseling_style)
+    
+    reward = 0.3
+    if result['similarity'] > 0.5:
+        reward = 0.5
+    elif result['similarity'] > 0.3:
+        reward = 0.4
+    
+    if request.counseling_style == "공감":
+        reward += 0.1
+    elif request.counseling_style == "반영":
+        reward += 0.15
+    
+    return CounselResponse(
+        response=result['response'],
+        source_id=result['source_id'],
+        similarity=result['similarity'],
+        detected_emotions=result['detected_emotions'],
+        counseling_style=request.counseling_style,
+        reward=reward
+    )
+
+
+@fastapi_app.post("/api/search")
+async def api_search(user_message: str, limit: int = 5):
+    if db is None:
+        raise HTTPException(status_code=500, detail="데이터베이스가 초기화되지 않았습니다.")
+    
+    results = db.search_similar(user_message, limit)
+    return {"results": results, "count": len(results)}
+
+
+@fastapi_app.post("/api/session/start")
+async def api_session_start(request: SessionStartRequest):
+    if db is None:
+        raise HTTPException(status_code=500, detail="데이터베이스가 초기화되지 않았습니다.")
+    
+    db.cursor.execute('''
+        INSERT INTO sessions (client_name, counselor_name)
+        VALUES (?, ?)
+    ''', (request.client_name, request.counselor_name))
+    db.conn.commit()
+    
+    session_id = db.cursor.lastrowid
+    
+    return {
+        "session_id": session_id,
+        "client_name": request.client_name,
+        "counselor_name": request.counselor_name,
+        "message": "세션이 시작되었습니다."
+    }
+
+
+@fastapi_app.post("/api/session/end")
+async def api_session_end(request: SessionEndRequest):
+    if db is None:
+        raise HTTPException(status_code=500, detail="데이터베이스가 초기화되지 않았습니다.")
+    
+    db.cursor.execute('''
+        UPDATE sessions 
+        SET end_time = CURRENT_TIMESTAMP, final_emotions = ?
+        WHERE id = ?
+    ''', (str(request.final_emotions), request.session_id))
+    db.conn.commit()
+    
+    return {
+        "session_id": request.session_id,
+        "message": "세션이 종료되었습니다."
+    }
+
+
+@fastapi_app.post("/api/learning")
+async def api_learning(request: LearningRequest):
+    if db is None:
+        raise HTTPException(status_code=500, detail="데이터베이스가 초기화되지 않았습니다.")
+    
+    db.save_learning(
+        request.counselor_name,
+        request.episode,
+        request.reward,
+        request.strategy,
+        request.client_state
+    )
+    
+    return {"message": "학습 이력이 저장되었습니다."}
+
+
+@fastapi_app.get("/api/stats")
+async def api_stats():
+    if db is None:
+        raise HTTPException(status_code=500, detail="데이터베이스가 초기화되지 않았습니다.")
+    
+    stats = db.get_statistics()
+    return stats
+
+
+@fastapi_app.get("/api/qa/{qa_id}")
+async def api_get_qa(qa_id: int):
+    if db is None:
+        raise HTTPException(status_code=500, detail="데이터베이스가 초기화되지 않았습니다.")
+    
+    db.cursor.execute('''
+        SELECT id, question, answer, label, emotions
+        FROM qa_pairs
+        WHERE id = ?
+    ''', (qa_id,))
+    
+    row = db.cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="QA를 찾을 수 없습니다.")
+    
+    return {
+        "id": row[0],
+        "question": row[1],
+        "answer": row[2],
+        "label": row[3],
+        "emotions": row[4]
+    }
+
+
+# ============================================================
 # Gradio 앱
 # ============================================================
 
-def create_app():
-    """Gradio 앱 생성"""
-    
-    with gr.Blocks(title="🧠 심리상담 클리닉") as app:
+def create_gradio_app():
+    with gr.Blocks(title="🧠 심리상담 클리닉") as demo:
         
         gr.Markdown("""
-        # 🧠 심리상담 클리nç
+        # 🧠 심리상담 클리닉
         
         강화학습 상담사와 한국어 언어모델이 통합된 심리상담 시스템
         
@@ -483,18 +663,13 @@ def create_app():
             with gr.Tab("⚙️ 초기화"):
                 gr.Markdown("### 시스템 초기화")
                 
-                api_mode = gr.Checkbox(
-                    label="API 서버 모드 사용",
-                    value=False
-                )
-                
                 with gr.Row():
                     init_btn = gr.Button("🔄 클리닉 초기화", variant="primary")
                     model_btn = gr.Button("📥 한국어 모델 로드", variant="secondary")
                 
                 init_output = gr.Textbox(label="초기화 결과", lines=10, interactive=False)
                 
-                init_btn.click(fn=initialize_clinic, inputs=api_mode, outputs=init_output)
+                init_btn.click(fn=initialize_clinic, inputs=None, outputs=init_output)
                 model_btn.click(fn=load_chatbot_model, outputs=init_output)
             
             with gr.Tab("🎯 세션 관리"):
@@ -598,23 +773,23 @@ def create_app():
         
         gr.Markdown("""
         ---
-        ### 📖 사용법
-        
-        1. **초기화 탭**: 클리닉 초기화 → 한국어 모델 로드
-        2. **세션 관리 탭**: 내담자 선택 → 세션 시작
-        3. **상담 대화 탭**: 내담자 메시지 입력 → 상담사 응답 확인
-        4. **상태 탭**: 실시간 감정 상태 추적
-        5. **확률 탭**: 상담사의 행동 선택 확률 확인
-        6. **학습 탭**: 상담 전략 학습
-        
-        ---
-        **통합 시스템 구조:**
-        - RL 정책: 어떤 상담 전략(공감, 질문, 반영 등)을 사용할지 결정
-        - 한국어 모델: 선택된 전략에 따른 실제 응답 생성
-        - 보상 함수: 상담 효과에 기반한 학습
+        **API 문서**: [/api/docs](/api/docs)
         """)
     
-    return app
+    return demo
+
+
+# ============================================================
+# 통합 앱 생성
+# ============================================================
+
+gradio_app = create_gradio_app()
+
+fastapi_app = gr.mount_gradio_app(
+    fastapi_app,
+    gradio_app,
+    path="/ui"
+)
 
 
 # ============================================================
@@ -625,31 +800,15 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description="심리상담 클리닉 실행")
-    parser.add_argument("--api", action="store_true", help="API 서버 모드로 실행")
-    parser.add_argument("--port", type=int, default=7862, help="Gradio 포트")
-    parser.add_argument("--api-port", type=int, default=8000, help="API 서버 포트")
+    parser.add_argument("--port", type=int, default=7862, help="서버 포트")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="호스트")
     args = parser.parse_args()
     
-    if args.api:
-        print("API 서버 시작 중...")
-        initialize_clinic(use_api=True)
-        
-        import threading
-        from api_server import run_server
-        api_thread = threading.Thread(target=run_server, args=("0.0.0.0", args.api_port))
-        api_thread.daemon = True
-        api_thread.start()
-        print(f"✅ API 서버 시작: http://localhost:{args.api_port}")
-    else:
-        initialize_clinic(use_api=False)
-    
+    initialize_clinic(use_api=False)
     chatbot_model.load()
     
-    app = create_app()
-    app.launch(
-        server_name="0.0.0.0",
-        server_port=args.port,
-        share=False,
-        show_error=True,
-        theme=gr.themes.Soft()
-    )
+    print(f"✅ 서버 시작: http://localhost:{args.port}")
+    print(f"   Gradio UI: http://localhost:{args.port}/ui")
+    print(f"   API 문서: http://localhost:{args.port}/api/docs")
+    
+    uvicorn.run(fastapi_app, host=args.host, port=args.port)
