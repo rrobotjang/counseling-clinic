@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>심리상담 클리닉 - 가상 공간</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a1a;
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a3e, #2d1b4e);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(233,69,96,0.3);
+            z-index: 10;
+        }
+
+        .header h1 {
+            font-size: 1.3em;
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-info span { color: #888; font-size: 0.9em; }
+        .user-info .room-badge {
+            background: rgba(233,69,96,0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(233,69,96,0.3);
+            color: #e94560;
+            font-size: 0.85em;
+        }
+
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+
+        .sidebar {
+            width: 240px;
+            background: #111128;
+            padding: 15px;
+            border-right: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .sidebar h3 {
+            color: #e94560;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(233,69,96,0.2);
+        }
+
+        .room-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+
+        .room-item {
+            background: rgba(255,255,255,0.03);
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .room-item:hover { background: rgba(233,69,96,0.1); border-color: rgba(233,69,96,0.2); }
+        .room-item.active { background: rgba(233,69,96,0.15); border-color: #e94560; }
+        .room-name { font-weight: 600; margin-bottom: 4px; font-size: 0.95em; }
+        .room-users { font-size: 0.8em; color: #666; }
+
+        .virtual-space { flex: 1; display: flex; flex-direction: column; position: relative; }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(ellipse at center, #1a1a3e 0%, #0a0a1a 70%);
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        .canvas-container::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(233,69,96,0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(76,175,80,0.03) 0%, transparent 50%);
+        }
+
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            inset: 0;
+        }
+
+        .avatar {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 5;
+        }
+
+        .avatar:hover { transform: scale(1.15); }
+        .avatar:active { transform: scale(0.95); }
+
+        .avatar-body {
+            position: relative;
+            width: 48px;
+            height: 48px;
+        }
+
+        .avatar-head {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: box-shadow 0.3s;
+        }
+
+        .avatar:hover .avatar-head {
+            box-shadow: 0 4px 25px rgba(0,0,0,0.5);
+        }
+
+        .avatar-eyes {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 8px;
+        }
+
+        .avatar-eye {
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .avatar-eye::after {
+            content: '';
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: #333;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: blink 3s infinite;
+        }
+
+        @keyframes blink {
+            0%, 96%, 100% { transform: translate(-50%, -50%) scaleY(1); }
+            98% { transform: translate(-50%, -50%) scaleY(0.1); }
+        }
+
+        .avatar-mouth {
+            position: absolute;
+            bottom: 25%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 12px;
+            height: 6px;
+            border-bottom: 2px solid rgba(255,255,255,0.6);
+            border-radius: 0 0 6px 6px;
+        }
+
+        .avatar-label {
+            margin-top: 6px;
+            padding: 3px 10px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 12px;
+            font-size: 11px;
+            white-space: nowrap;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .avatar-energy {
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 3px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .avatar-energy-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s;
+        }
+
+        .avatar.user .avatar-head { background: linear-gradient(135deg, #e94560, #ff6b6b); }
+        .avatar.agent .avatar-head { background: linear-gradient(135deg, #4CAF50, #66BB6A); }
+        .avatar.agent.counselor-a .avatar-head { background: linear-gradient(135deg, #e94560, #ff6b6b); }
+        .avatar.agent.counselor-b .avatar-head { background: linear-gradient(135deg, #2196F3, #42A5F5); }
+        .avatar.agent.observer .avatar-head { background: linear-gradient(135deg, #9C27B0, #AB47BC); }
+
+        .avatar.user .avatar-energy-fill { background: linear-gradient(90deg, #e94560, #ff6b6b); }
+        .avatar.agent .avatar-energy-fill { background: linear-gradient(90deg, #4CAF50, #66BB6A); }
+        .avatar.agent.counselor-a .avatar-energy-fill { background: linear-gradient(90deg, #e94560, #ff6b6b); }
+        .avatar.agent.counselor-b .avatar-energy-fill { background: linear-gradient(90deg, #2196F3, #42A5F5); }
+        .avatar.agent.observer .avatar-energy-fill { background: linear-gradient(90deg, #9C27B0, #AB47BC); }
+
+        .avatar.typing .avatar-mouth {
+            animation: typing 0.5s infinite;
+        }
+
+        @keyframes typing {
+            0%, 100% { height: 6px; border-bottom-width: 2px; }
+            50% { height: 10px; border-bottom-width: 3px; }
+        }
+
+        .avatar.speaking .avatar-head {
+            animation: speaking 0.3s infinite;
+        }
+
+        @keyframes speaking {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .chat-container {
+            height: 220px;
+            background: #111128;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            padding: 8px 15px;
+            background: rgba(233,69,96,0.1);
+            font-size: 0.85em;
+            color: #e94560;
+            border-bottom: 1px solid rgba(233,69,96,0.2);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .chat-message {
+            padding: 10px 14px;
+            border-radius: 12px;
+            max-width: 80%;
+            animation: slideIn 0.2s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-message.user {
+            background: rgba(233,69,96,0.2);
+            border: 1px solid rgba(233,69,96,0.3);
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-message.agent {
+            background: rgba(76,175,80,0.15);
+            border: 1px solid rgba(76,175,80,0.2);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-message.system {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            align-self: center;
+            font-style: italic;
+            color: #888;
+            font-size: 0.85em;
+        }
+
+        .chat-sender {
+            font-size: 0.75em;
+            font-weight: 600;
+            margin-bottom: 4px;
+            opacity: 0.8;
+        }
+
+        .chat-message.user .chat-sender { color: #e94560; }
+        .chat-message.agent .chat-sender { color: #4CAF50; }
+        .chat-message.system .chat-sender { color: #888; }
+
+        .chat-text { font-size: 0.9em; line-height: 1.4; }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 12px 14px;
+            background: rgba(76,175,80,0.15);
+            border: 1px solid rgba(76,175,80,0.2);
+            border-radius: 12px;
+            align-self: flex-start;
+            width: fit-content;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: #4CAF50;
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-6px); }
+        }
+
+        .chat-input-container {
+            display: flex;
+            padding: 10px 15px;
+            gap: 10px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            background: rgba(255,255,255,0.05);
+            color: white;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #e94560;
+            background: rgba(233,69,96,0.1);
+        }
+
+        .chat-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        .chat-btn:hover { transform: scale(1.05); box-shadow: 0 4px 15px rgba(233,69,96,0.4); }
+        .chat-btn:active { transform: scale(0.95); }
+
+        .agent-panel {
+            width: 240px;
+            background: #111128;
+            padding: 15px;
+            border-left: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .agent-panel h3 {
+            color: #4CAF50;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(76,175,80,0.2);
+        }
+
+        .agent-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+
+        .agent-item {
+            background: rgba(255,255,255,0.03);
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .agent-item:hover { background: rgba(76,175,80,0.1); border-color: rgba(76,175,80,0.2); }
+        .agent-item.active { background: rgba(76,175,80,0.15); border-color: #4CAF50; }
+
+        .agent-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+
+        .agent-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .agent-name { font-weight: 600; font-size: 0.9em; }
+        .agent-personality { font-size: 0.8em; color: #888; margin-bottom: 6px; }
+
+        .agent-traits { display: flex; flex-wrap: wrap; gap: 4px; }
+
+        .trait-tag {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .trait-tag.high { background: rgba(76,175,80,0.2); color: #4CAF50; }
+        .trait-tag.medium { background: rgba(255,193,7,0.2); color: #FFC107; }
+        .trait-tag.low { background: rgba(244,67,54,0.2); color: #F44336; }
+
+        .agent-energy-bar {
+            margin-top: 8px;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .agent-energy-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+        .controls {
+            padding: 10px 20px;
+            background: #111128;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-btns { display: flex; gap: 8px; }
+
+        .control-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.85em;
+            transition: all 0.3s;
+        }
+
+        .control-btn.primary {
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            color: white;
+        }
+
+        .control-btn.secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .control-btn.evolution {
+            background: linear-gradient(135deg, #9C27B0, #AB47BC);
+            color: white;
+        }
+
+        .control-btn:hover { transform: scale(1.05); }
+
+        .evolution-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 0.85em;
+            color: #888;
+        }
+
+        .evolution-stats .stat { display: flex; align-items: center; gap: 6px; }
+        .evolution-stats .stat-value { color: #4CAF50; font-weight: 600; }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-content {
+            background: #1a1a3e;
+            padding: 40px;
+            border-radius: 20px;
+            width: 420px;
+            text-align: center;
+            border: 1px solid rgba(233,69,96,0.3);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .modal-content h2 {
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            font-size: 1.8em;
+        }
+
+        .modal-content p { color: #888; margin-bottom: 25px; }
+
+        .modal-input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            background: rgba(255,255,255,0.05);
+            color: white;
+            font-size: 1em;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .modal-input:focus { outline: none; border-color: #e94560; }
+
+        .modal-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            color: white;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .modal-btn:hover { transform: scale(1.02); box-shadow: 0 4px 20px rgba(233,69,96,0.4); }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 14px 20px;
+            border-radius: 12px;
+            display: none;
+            z-index: 200;
+            animation: slideIn 0.3s ease-out;
+            backdrop-filter: blur(10px);
+        }
+
+        .notification.success { background: rgba(76,175,80,0.9); }
+        .notification.error { background: rgba(233,69,96,0.9); }
+        .notification.info { background: rgba(33,150,243,0.9); }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(233,69,96,0.5); }
+    </style>
+</head>
+<body>
+    <div class="modal" id="loginModal">
+        <div class="modal-content">
+            <h2>심리상담 클리닉</h2>
+            <p>가상 공간에 입장하려면 이름을 입력하세요</p>
+            <input type="text" class="modal-input" id="userName" placeholder="이름 입력" maxlength="20">
+            <button class="modal-btn" onclick="joinSpace()">입장하기</button>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <div class="header">
+        <h1>심리상담 클리닉</h1>
+        <div class="user-info">
+            <span id="currentRoom" class="room-badge">로비</span>
+            <span id="userCount">0명 접속</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <h3>방 목록</h3>
+            <div class="room-list" id="roomList"></div>
+        </div>
+
+        <div class="virtual-space">
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="gameCanvas"></canvas>
+                <div id="avatarContainer"></div>
+            </div>
+
+            <div class="chat-container">
+                <div class="chat-header">채팅</div>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-input-container">
+                    <input type="text" class="chat-input" id="chatInput" placeholder="메시지 입력..." onkeypress="handleKeyPress(event)">
+                    <button class="chat-btn" onclick="sendMessage()">전송</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="agent-panel">
+            <h3>상담 에이전트</h3>
+            <div class="agent-list" id="agentList"></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="evolution-stats" id="evolutionStats">
+            <div class="stat">세대: <span class="stat-value" id="genCount">1</span></div>
+            <div class="stat">인구: <span class="stat-value" id="popCount">3</span></div>
+            <div class="stat">적응도: <span class="stat-value" id="fitnessAvg">0.60</span></div>
+        </div>
+        <div class="control-btns">
+            <button class="control-btn evolution" onclick="runEvolution()">진화 실행</button>
+            <button class="control-btn secondary" onclick="leaveRoom()">나가기</button>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let userId = null;
+        let userName = null;
+        let currentRoomId = 'lobby';
+        let rooms = [];
+        let agents = [];
+        let users = {};
+        let selectedAgent = null;
+        let wsReconnectTimer = null;
+
+        const agentAvatars = {
+            'counselor-1': { emoji: '🤗', class: 'counselor-a', name: '상담사 A' },
+            'counselor-2': { emoji: '🧠', class: 'counselor-b', name: '상담사 B' },
+            'observer-1':  { emoji: '👁️', class: 'observer', name: '관찰자' }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRooms();
+            loadAgents();
+            initCanvas();
+        });
+
+        function initCanvas() {
+            const canvas = document.getElementById('gameCanvas');
+            const container = document.getElementById('canvasContainer');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+
+            window.addEventListener('resize', () => {
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+                drawRoom();
+            });
+
+            canvas.addEventListener('click', (e) => {
+                if (!ws || !userId) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                ws.send(JSON.stringify({ type: 'move', position: { x, y } }));
+            });
+        }
+
+        function drawRoom() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = 'rgba(233,69,96,0.03)';
+            for (let i = 0; i < 20; i++) {
+                ctx.beginPath();
+                ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, Math.random() * 30 + 10, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+        }
+
+        async function loadRooms() {
+            try {
+                const res = await fetch('/api/rooms');
+                const data = await res.json();
+                rooms = data.rooms;
+                renderRoomList();
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadAgents(roomId) {
+            try {
+                const targetRoom = roomId || currentRoomId;
+                const res = await fetch(`/api/room-agents/${targetRoom}`);
+                const data = await res.json();
+                agents = data.agents;
+                renderAgentList();
+                updateEvolutionStats();
+            } catch (e) { console.error(e); }
+        }
+
+        function renderRoomList() {
+            document.getElementById('roomList').innerHTML = rooms.map(r => `
+                <div class="room-item ${r.room_id === currentRoomId ? 'active' : ''}" onclick="switchRoom('${r.room_id}')">
+                    <div class="room-name">${r.name}</div>
+                    <div class="room-users">${r.user_count}/${r.max_users}명</div>
+                </div>
+            `).join('');
+        }
+
+        function renderAgentList() {
+            document.getElementById('agentList').innerHTML = agents.map(a => {
+                const avatar = agentAvatars[a.agent_id] || { emoji: '🤖', class: '' };
+                const traits = a.traits || {};
+                return `
+                    <div class="agent-item ${selectedAgent === a.agent_id ? 'active' : ''}" onclick="selectAgent('${a.agent_id}')">
+                        <div class="agent-header">
+                            <div class="agent-avatar ${avatar.class}" style="font-size:16px">${avatar.emoji}</div>
+                            <div>
+                                <div class="agent-name">${a.name}</div>
+                                <div class="agent-personality">세대 ${a.generation} · 적응도 ${a.fitness}</div>
+                            </div>
+                        </div>
+                        <div class="agent-traits">
+                            ${Object.entries(traits).slice(0, 4).map(([k, v]) =>
+                                `<span class="trait-tag ${v > 0.7 ? 'high' : v > 0.4 ? 'medium' : 'low'}">${k}: ${v.toFixed(2)}</span>`
+                            ).join('')}
+                        </div>
+                        <div class="agent-energy-bar">
+                            <div class="agent-energy-fill" style="width:${a.energy}%; background: ${a.energy > 60 ? '#4CAF50' : a.energy > 30 ? '#FFC107' : '#F44336'}"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateEvolutionStats() {
+            const alive = agents.filter(a => a.is_alive !== false);
+            const avgFitness = alive.length > 0 ? alive.reduce((s, a) => s + (a.fitness || 0), 0) / alive.length : 0;
+            const maxGen = alive.length > 0 ? Math.max(...alive.map(a => a.generation || 1)) : 1;
+            document.getElementById('genCount').textContent = maxGen;
+            document.getElementById('popCount').textContent = alive.length;
+            document.getElementById('fitnessAvg').textContent = avgFitness.toFixed(2);
+        }
+
+        function selectAgent(agentId) {
+            selectedAgent = agentId;
+            renderAgentList();
+            document.getElementById('chatInput').focus();
+        }
+
+        function joinSpace() {
+            console.log('[JOIN] joinSpace called');
+            userName = document.getElementById('userName').value.trim();
+            if (!userName) { showNotification('이름을 입력하세요', 'error'); return; }
+            userId = 'user-' + Math.random().toString(36).substr(2, 9);
+            console.log('[JOIN] userId:', userId, 'userName:', userName);
+            document.getElementById('loginModal').style.display = 'none';
+            joinRoom(currentRoomId);
+        }
+
+        async function joinRoom(roomId) {
+            console.log('[JOIN] joinRoom called, roomId:', roomId);
+            try {
+                const url = `/api/rooms/${roomId}/join?user_id=${userId}&user_name=${encodeURIComponent(userName)}`;
+                console.log('[JOIN] fetching:', url);
+                const res = await fetch(url, { method: 'POST' });
+                console.log('[JOIN] response status:', res.status);
+                const data = await res.json();
+                console.log('[JOIN] response data:', data);
+                if (res.ok) {
+                    currentRoomId = roomId;
+                    document.getElementById('currentRoom').textContent = rooms.find(r => r.room_id === roomId)?.name || roomId;
+                    connectWebSocket(roomId);
+                    loadRooms();
+                    loadAgents(roomId);
+                    showNotification(`${userName}님 환영합니다!`, 'success');
+                } else {
+                    showNotification(data.detail || '방 참가 실패', 'error');
+                }
+            } catch (e) {
+                console.error('[JOIN] error:', e);
+                showNotification('방 참가 실패: ' + e.message, 'error');
+            }
+        }
+
+        function connectWebSocket(roomId) {
+            if (ws) { ws.onclose = null; ws.close(); }
+            if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const url = `${protocol}//${location.host}/ws/${roomId}/${userId}`;
+            console.log('[WS] connecting:', url);
+
+            try {
+                ws = new WebSocket(url);
+            } catch (e) {
+                console.error('[WS] create failed:', e);
+                showNotification('WebSocket 연결 실패', 'error');
+                return;
+            }
+
+            ws.onopen = () => {
+                console.log('[WS] connected');
+                showNotification('연결됨', 'success');
+            };
+
+            ws.onmessage = (e) => {
+                try { handleMessage(JSON.parse(e.data)); }
+                catch (err) { console.error('[WS] parse error:', err); }
+            };
+
+            ws.onclose = (e) => {
+                console.log('[WS] closed:', e.code, e.reason);
+                if (userId && currentRoomId) {
+                    console.log('[WS] reconnecting in 2s...');
+                    wsReconnectTimer = setTimeout(() => connectWebSocket(currentRoomId), 2000);
+                }
+            };
+
+            ws.onerror = (e) => {
+                console.error('[WS] error:', e);
+                showNotification('WebSocket 오류 - 재연결 시도', 'error');
+            };
+        }
+
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'state': updateRoomState(data.room); break;
+                case 'message': addChatMessage(data.user_id, data.message, 'user'); break;
+                case 'agent_response': removeTypingIndicator(); addChatMessage(data.agent_id, data.response, 'agent'); setAgentSpeaking(data.agent_id); break;
+                case 'move': updateAvatarPosition(data.user_id, data.position); break;
+                case 'leave': removeAvatar(data.user_id); break;
+                case 'user_join': addUser(data.user_id, data.user_info); break;
+                case 'autonomous_chat':
+                    addChatMessage(data.agent1_id, `${data.agent1_name}: ${data.message1}`, 'agent');
+                    addChatMessage(data.agent2_id, `${data.agent2_name}: ${data.message2}`, 'agent');
+                    break;
+                case 'evolution': showNotification('진화 완료!', 'success'); loadAgents(); break;
+            }
+        }
+
+        function addUser(uid, userInfo) {
+            users[uid] = userInfo;
+            renderAvatars();
+            document.getElementById('userCount').textContent = `${Object.keys(users).length}명 접속`;
+        }
+
+        function updateRoomState(room) {
+            users = room.users;
+            document.getElementById('userCount').textContent = `${room.user_count}명 접속`;
+            renderAvatars();
+            room.messages.forEach(msg => addChatMessage(msg.sender, msg.message, msg.type));
+        }
+
+        function renderAvatars() {
+            const container = document.getElementById('avatarContainer');
+            container.innerHTML = '';
+
+            Object.entries(users).forEach(([uid, user]) => {
+                const isAgent = uid.startsWith('counselor') || uid.startsWith('observer');
+                const avatarInfo = agentAvatars[uid] || { emoji: user.name?.charAt(0) || '?', class: '' };
+
+                const avatar = document.createElement('div');
+                avatar.className = `avatar ${isAgent ? 'agent ' + avatarInfo.class : 'user'}`;
+                avatar.id = `avatar-${uid}`;
+                avatar.style.left = `${user.position?.x || 100}px`;
+                avatar.style.top = `${user.position?.y || 100}px`;
+                avatar.style.transform = 'translate(-50%, -50%)';
+                avatar.innerHTML = `
+                    <div class="avatar-body">
+                        <div class="avatar-head">
+                            <div class="avatar-eyes">
+                                <div class="avatar-eye"></div>
+                                <div class="avatar-eye"></div>
+                            </div>
+                            <div class="avatar-mouth"></div>
+                        </div>
+                        <div class="avatar-energy">
+                            <div class="avatar-energy-fill" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="avatar-label">${avatarInfo.emoji} ${user.name}</div>
+                `;
+                avatar.onclick = () => { if (isAgent) selectAgent(uid); };
+                container.appendChild(avatar);
+            });
+
+            agents.forEach(a => {
+                if (!users[a.agent_id]) {
+                    const avatarInfo = agentAvatars[a.agent_id] || { emoji: '🤖', class: '' };
+                    const avatar = document.createElement('div');
+                    avatar.className = `avatar agent ${avatarInfo.class}`;
+                    avatar.id = `avatar-${a.agent_id}`;
+                    avatar.style.left = `${150 + Math.random() * 400}px`;
+                    avatar.style.top = `${100 + Math.random() * 200}px`;
+                    avatar.style.transform = 'translate(-50%, -50%)';
+                    avatar.innerHTML = `
+                        <div class="avatar-body">
+                            <div class="avatar-head">
+                                <div class="avatar-eyes">
+                                    <div class="avatar-eye"></div>
+                                    <div class="avatar-eye"></div>
+                                </div>
+                                <div class="avatar-mouth"></div>
+                            </div>
+                            <div class="avatar-energy">
+                                <div class="avatar-energy-fill" style="width: ${a.energy}%"></div>
+                            </div>
+                        </div>
+                        <div class="avatar-label">${avatarInfo.emoji} ${a.name}</div>
+                    `;
+                    avatar.onclick = () => selectAgent(a.agent_id);
+                    container.appendChild(avatar);
+                }
+            });
+        }
+
+        function updateAvatarPosition(uid, position) {
+            const avatar = document.getElementById(`avatar-${uid}`);
+            if (avatar) {
+                avatar.style.left = `${position.x}px`;
+                avatar.style.top = `${position.y}px`;
+            }
+        }
+
+        function removeAvatar(uid) {
+            const avatar = document.getElementById(`avatar-${uid}`);
+            if (avatar) avatar.remove();
+            delete users[uid];
+        }
+
+        function addChatMessage(sender, message, type) {
+            const container = document.getElementById('chatMessages');
+            const isUser = type === 'user' || (!sender.startsWith('counselor') && !sender.startsWith('observer') && sender !== 'system');
+            const displayName = isUser ? (sender === userId ? userName : sender) : (agentAvatars[sender]?.name || sender);
+            const msgType = sender === 'system' ? 'system' : (isUser ? 'user' : 'agent');
+
+            const div = document.createElement('div');
+            div.className = `chat-message ${msgType}`;
+            div.innerHTML = `
+                <div class="chat-sender">${displayName}</div>
+                <div class="chat-text">${message}</div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showTypingIndicator(agentId) {
+            removeTypingIndicator();
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'typing-indicator';
+            div.id = 'typing-indicator';
+            div.innerHTML = `
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+
+            const avatar = document.getElementById(`avatar-${agentId}`);
+            if (avatar) avatar.classList.add('typing');
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) indicator.remove();
+            document.querySelectorAll('.avatar.typing').forEach(a => a.classList.remove('typing'));
+        }
+
+        function setAgentSpeaking(agentId) {
+            const avatar = document.getElementById(`avatar-${agentId}`);
+            if (avatar) {
+                avatar.classList.add('speaking');
+                setTimeout(() => avatar.classList.remove('speaking'), 1500);
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message || !ws) return;
+
+            if (selectedAgent) {
+                showTypingIndicator(selectedAgent);
+                ws.send(JSON.stringify({ type: 'agent_chat', agent_id: selectedAgent, message }));
+            } else {
+                ws.send(JSON.stringify({ type: 'chat', message }));
+            }
+            input.value = '';
+        }
+
+        async function runEvolution() {
+            try {
+                const res = await fetch('/api/evolution');
+                const data = await res.json();
+                showNotification(`진화 완료! 세대 ${data.generation || '?'}`, 'success');
+                loadAgents(currentRoomId);
+            } catch (e) { showNotification('진화 실패', 'error'); }
+        }
+
+        function switchRoom(roomId) {
+            if (roomId === currentRoomId) return;
+            fetch(`/api/rooms/${currentRoomId}/leave?user_id=${userId}`, { method: 'POST' });
+            joinRoom(roomId);
+        }
+
+        function leaveRoom() {
+            if (ws) ws.close();
+            fetch(`/api/rooms/${currentRoomId}/leave?user_id=${userId}`, { method: 'POST' });
+            document.getElementById('loginModal').style.display = 'flex';
+            userId = null; userName = null;
+        }
+
+        function showNotification(message, type = 'info') {
+            const n = document.getElementById('notification');
+            n.textContent = message;
+            n.className = `notification ${type}`;
+            n.style.display = 'block';
+            setTimeout(() => n.style.display = 'none', 3000);
+        }
+
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+
+        drawRoom();
+    </script>
+</body>
+</html>

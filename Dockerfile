@@ -1,17 +1,16 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements-server.txt .
+RUN pip install --no-cache-dir -r requirements-server.txt
 
-COPY village/ ./village/
-COPY data/ ./data/
-COPY korean_chatbot_app_v2/ ./korean_chatbot_app_v2/
-COPY app_clinic.py .
+COPY agents/ ./agents/
+COPY static/ ./static/
+COPY app_render_v2.py .
 
 ENV PYTHONPATH=/app
 
 EXPOSE 7862
 
-CMD ["python", "app_clinic.py", "--port", "7862"]
+CMD ["python", "app_render_v2.py", "--port", "7862"]

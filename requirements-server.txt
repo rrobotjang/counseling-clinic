@@ -1,4 +1,4 @@
-# Render deployment - server only (no ollama, no torch)
+# Server-only dependencies (no torch/gradio/pandas - ollama handles inference)
 fastapi>=0.100.0
 uvicorn>=0.23.0
 slowapi>=0.1.9

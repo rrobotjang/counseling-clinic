@@ -3,10 +3,19 @@ services:
     name: counseling-clinic
     runtime: python
     buildCommand: pip install -r requirements-light.txt
-    startCommand: python app_render.py --port 10000
+    startCommand: python app_render_v2.py --port $PORT
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10.0
+        value: 3.11.0
       - key: PORT
+        sync: false
         value: 10000
+      - key: CLOVA_API_URL
+        sync: false
+      - key: CLOVA_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://counseling-clinic.onrender.com,http://localhost:7862
     plan: free
+    autoDeploy: true
+    healthCheckPath: /health
